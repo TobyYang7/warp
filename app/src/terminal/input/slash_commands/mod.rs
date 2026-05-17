@@ -445,6 +445,25 @@ impl Input {
                     }
                 });
 
+                // Check for local AI config — if present, run claude directly
+                let config_path = dirs::home_dir().map(|p| p.join(".warp").join("setting.json"));
+                if let Some(path) = config_path {
+                    if let Ok(content) = std::fs::read_to_string(&path) {
+                        if let Ok(config) = serde_json::from_str::<serde_json::Value>(&content) {
+                            let claude_path = config["claude_code_path"]
+                                .as_str()
+                                .unwrap_or("claude");
+                            if let Some(query) = &prompt {
+                                let cmd = format!("{claude_path} \"{query}\"");
+                                self.try_execute_command(&cmd, ctx);
+                                return true;
+                            } else {
+                                // No argument — enter the agent view normally
+                            }
+                        }
+                    }
+                }
+
                 ctx.emit(Event::EnterAgentView {
                     initial_prompt: prompt,
                     conversation_id: None,
