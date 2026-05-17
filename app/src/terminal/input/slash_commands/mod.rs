@@ -37,7 +37,6 @@ use crate::ai::blocklist::{BlocklistAIHistoryModel, SlashCommandRequest};
 use crate::cloud_object::model::persistence::CloudModel;
 use crate::code_review::telemetry_event::CodeReviewPaneEntrypoint;
 use crate::search::slash_command_menu::static_commands::commands::{self, COMMAND_REGISTRY};
-use ::ai::api_keys::ApiKeyManager;
 use crate::search::slash_command_menu::static_commands::Availability;
 use crate::search::slash_command_menu::{SlashCommandId, StaticCommand};
 use crate::server::ids::SyncId;
@@ -446,24 +445,14 @@ impl Input {
                     }
                 });
 
-                // Check for locally configured Claude Code — if present, run claude directly
-                let claude_code_path: Option<String> = ApiKeyManager::as_ref(ctx)
-                    .keys()
-                    .claude_code_path
-                    .as_deref()
-                    .filter(|p| !p.is_empty())
-                    .map(|p| p.to_string());
-                if let Some(ref claude_bin) = claude_code_path {
-                    if let Some(query) = &prompt {
-                        let cmd = format!("{claude_bin} \"{query}\"");
-                        self.try_execute_command(&cmd, ctx);
-                        return true;
-                    } else {
-                        // No argument — just run claude without a prompt
-                        self.try_execute_command(claude_bin, ctx);
-                        return true;
-                    }
+                // Always run claude locally — ignore any cloud agent
+                if let Some(query) = &prompt {
+                    let cmd = format!("claude \"{query}\"");
+                    self.try_execute_command(&cmd, ctx);
+                } else {
+                    self.try_execute_command("claude", ctx);
                 }
+                return true;
 
                 ctx.emit(Event::EnterAgentView {
                     initial_prompt: prompt,

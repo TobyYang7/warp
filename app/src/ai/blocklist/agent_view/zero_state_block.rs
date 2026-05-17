@@ -270,7 +270,7 @@ impl AgentViewZeroStateBlock {
             terminal_model,
             current_working_directory,
             cached_recent_conversations,
-            should_hide: matches!(origin, AgentViewEntryOrigin::AcceptedPassiveCodeDiff)
+            should_hide: true
                 || is_local_to_cloud_handoff,
             should_show_init_callout,
             has_parent_terminal,
