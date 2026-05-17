@@ -489,6 +489,9 @@ impl UserWorkspaces {
     /// For solo users (no workspace), this is controlled by the `SoloUserByok` feature flag.
     /// Anonymous or logged-out users are not allowed to use BYO API keys.
     pub fn is_byo_api_key_enabled(&self, app: &AppContext) -> bool {
+        #[cfg(feature = "skip_login")]
+        return true;
+
         if AuthStateProvider::as_ref(app)
             .get()
             .is_anonymous_or_logged_out()

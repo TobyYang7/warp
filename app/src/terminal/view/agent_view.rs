@@ -51,6 +51,23 @@ impl TerminalView {
         origin: AgentViewEntryOrigin,
         ctx: &mut ViewContext<Self>,
     ) {
+        // When Claude Code is configured locally, launch it directly instead of entering the agent view
+        let claude_path = ::ai::api_keys::ApiKeyManager::as_ref(ctx)
+            .keys()
+            .claude_code_path
+            .as_deref()
+            .filter(|p| !p.is_empty())
+            .map(|p| p.to_string());
+        if let Some(ref claude_bin) = claude_path {
+            if let Some(query) = &initial_prompt {
+                let cmd = format!("{claude_bin} \"{query}\"");
+                self.execute_command_or_set_pending(&cmd, ctx);
+            } else {
+                self.execute_command_or_set_pending(claude_bin, ctx);
+            }
+            return;
+        }
+
         // Don't allow starting a new conversation while the agent is in control. 3p cloud
         // viewers enter agent view to wrap an existing run's content and are not starting a
         // new conversation, so they are exempt from this guard.
