@@ -6872,6 +6872,8 @@ struct ApiKeysWidget {
     openai_api_key_editor: ViewHandle<EditorView>,
     anthropic_api_key_editor: ViewHandle<EditorView>,
     google_api_key_editor: ViewHandle<EditorView>,
+    deepseek_api_key_editor: ViewHandle<EditorView>,
+    claude_code_path_editor: ViewHandle<EditorView>,
 
     can_use_warp_credits_for_fallback: SwitchStateHandle,
     upgrade_highlight_index: HighlightedHyperlink,
@@ -6892,6 +6894,8 @@ impl ApiKeysWidget {
             openai: openai_key,
             anthropic: anthropic_key,
             google: google_key,
+            deepseek_api_key: deepseek_key,
+            claude_code_path,
             ..
         } = ApiKeyManager::as_ref(ctx).keys().clone();
 
@@ -6979,11 +6983,58 @@ impl ApiKeysWidget {
             set_google_key,
             "AIzaSy..."
         );
+        create_api_key_editor!(
+            deepseek_api_key_editor,
+            deepseek_key,
+            set_deepseek_api_key,
+            "sk-..."
+        );
+
+        // Claude Code path editor (non-password, plain text)
+        let claude_code_path_editor = ctx.add_typed_action_view(move |ctx| {
+            let appearance = Appearance::handle(ctx).as_ref(ctx);
+            let options = SingleLineEditorOptions {
+                is_password: false,
+                text: TextOptions {
+                    font_size_override: Some(appearance.ui_font_size()),
+                    font_family_override: Some(appearance.monospace_font_family()),
+                    text_colors_override: Some(TextColors {
+                        default_color: appearance.theme().active_ui_text_color(),
+                        disabled_color: appearance.theme().disabled_ui_text_color(),
+                        hint_color: appearance.theme().disabled_ui_text_color(),
+                    }),
+                    ..Default::default()
+                },
+                ..Default::default()
+            };
+            let mut editor = EditorView::single_line(options, ctx);
+            editor.set_placeholder_text("claude", ctx);
+            if let Some(path) = &claude_code_path {
+                editor.set_buffer_text(path, ctx);
+            }
+            editor
+        });
+        AISettingsPageView::update_editor_interaction_state(
+            claude_code_path_editor.clone(),
+            is_any_ai_enabled && is_byo_enabled,
+            ctx,
+        );
+        ctx.subscribe_to_view(&claude_code_path_editor, |_, editor, event, ctx| {
+            if matches!(event, EditorEvent::Blurred | EditorEvent::Enter) {
+                let buffer_text = editor.as_ref(ctx).buffer_text(ctx);
+                let path = buffer_text.is_empty().not().then_some(buffer_text);
+                ApiKeyManager::handle(ctx).update(ctx, |model, ctx| {
+                    model.set_claude_code_path(path, ctx);
+                });
+            }
+        });
 
         Self {
             openai_api_key_editor,
             anthropic_api_key_editor,
             google_api_key_editor,
+            deepseek_api_key_editor,
+            claude_code_path_editor,
 
             can_use_warp_credits_for_fallback: Default::default(),
             upgrade_highlight_index: Default::default(),
@@ -7057,6 +7108,20 @@ impl ApiKeysWidget {
             appearance,
             "Google API key",
             self.google_api_key_editor.clone(),
+            is_enabled,
+            app,
+        ));
+        column.add_child(self.render_api_key_input(
+            appearance,
+            "DeepSeek API key",
+            self.deepseek_api_key_editor.clone(),
+            is_enabled,
+            app,
+        ));
+        column.add_child(self.render_api_key_input(
+            appearance,
+            "Claude Code path",
+            self.claude_code_path_editor.clone(),
             is_enabled,
             app,
         ));

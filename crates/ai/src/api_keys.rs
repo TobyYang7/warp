@@ -25,6 +25,10 @@ pub struct ApiKeys {
     pub openai: Option<String>,
     pub open_router: Option<String>,
     pub custom_endpoints: Vec<CustomEndpoint>,
+    /// DeepSeek API key for local AI proxy usage.
+    pub deepseek_api_key: Option<String>,
+    /// Path to the claude binary for local Claude Code integration.
+    pub claude_code_path: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
@@ -64,6 +68,7 @@ impl ApiKeys {
             || self.anthropic.is_some()
             || self.google.is_some()
             || self.open_router.is_some()
+            || self.deepseek_api_key.is_some()
             || self
                 .custom_endpoints
                 .iter()
@@ -134,6 +139,18 @@ impl ApiKeyManager {
 
     pub fn set_open_router_key(&mut self, key: Option<String>, ctx: &mut ModelContext<Self>) {
         self.keys.open_router = key;
+        ctx.emit(ApiKeyManagerEvent::KeysUpdated);
+        self.write_keys_to_secure_storage(ctx);
+    }
+
+    pub fn set_deepseek_api_key(&mut self, key: Option<String>, ctx: &mut ModelContext<Self>) {
+        self.keys.deepseek_api_key = key;
+        ctx.emit(ApiKeyManagerEvent::KeysUpdated);
+        self.write_keys_to_secure_storage(ctx);
+    }
+
+    pub fn set_claude_code_path(&mut self, path: Option<String>, ctx: &mut ModelContext<Self>) {
+        self.keys.claude_code_path = path;
         ctx.emit(ApiKeyManagerEvent::KeysUpdated);
         self.write_keys_to_secure_storage(ctx);
     }

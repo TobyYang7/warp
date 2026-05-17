@@ -37,6 +37,7 @@ use crate::ai::blocklist::{BlocklistAIHistoryModel, SlashCommandRequest};
 use crate::cloud_object::model::persistence::CloudModel;
 use crate::code_review::telemetry_event::CodeReviewPaneEntrypoint;
 use crate::search::slash_command_menu::static_commands::commands::{self, COMMAND_REGISTRY};
+use ::ai::api_keys::ApiKeyManager;
 use crate::search::slash_command_menu::static_commands::Availability;
 use crate::search::slash_command_menu::{SlashCommandId, StaticCommand};
 use crate::server::ids::SyncId;
@@ -445,22 +446,22 @@ impl Input {
                     }
                 });
 
-                // Check for local AI config — if present, run claude directly
-                let config_path = dirs::home_dir().map(|p| p.join(".warp").join("setting.json"));
-                if let Some(path) = config_path {
-                    if let Ok(content) = std::fs::read_to_string(&path) {
-                        if let Ok(config) = serde_json::from_str::<serde_json::Value>(&content) {
-                            let claude_path = config["claude_code_path"]
-                                .as_str()
-                                .unwrap_or("claude");
-                            if let Some(query) = &prompt {
-                                let cmd = format!("{claude_path} \"{query}\"");
-                                self.try_execute_command(&cmd, ctx);
-                                return true;
-                            } else {
-                                // No argument — enter the agent view normally
-                            }
-                        }
+                // Check for locally configured Claude Code — if present, run claude directly
+                let claude_code_path: Option<String> = ApiKeyManager::as_ref(ctx)
+                    .keys()
+                    .claude_code_path
+                    .as_deref()
+                    .filter(|p| !p.is_empty())
+                    .map(|p| p.to_string());
+                if let Some(ref claude_bin) = claude_code_path {
+                    if let Some(query) = &prompt {
+                        let cmd = format!("{claude_bin} \"{query}\"");
+                        self.try_execute_command(&cmd, ctx);
+                        return true;
+                    } else {
+                        // No argument — just run claude without a prompt
+                        self.try_execute_command(claude_bin, ctx);
+                        return true;
                     }
                 }
 

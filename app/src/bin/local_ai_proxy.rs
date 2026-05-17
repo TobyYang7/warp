@@ -146,7 +146,7 @@ pub async fn start_proxy(config: LocalAiConfig) -> Result<(u16, CancellationToke
 fn encode_event(event: &api::ResponseEvent) -> Vec<u8> {
     let mut buf = Vec::new();
     event.encode(&mut buf).unwrap();
-    let b64 = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(&buf);
+    let b64 = base64::engine::general_purpose::URL_SAFE.encode(&buf);
     format!("data: \"{b64}\"\n\n").into_bytes()
 }
 
