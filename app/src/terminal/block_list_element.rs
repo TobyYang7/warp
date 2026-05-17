@@ -3569,6 +3569,9 @@ impl Element for BlockListElement {
 
                     let total_lines = grid_storage_lines + flat_storage_lines;
                     let total_bytes = grid_storage_bytes + flat_storage_bytes;
+                    #[cfg(feature = "skip_login")]
+                    let text = String::new();
+                    #[cfg(not(feature = "skip_login"))]
                     let text = format!("\
                             Lines: {total_lines} (grid: {grid_storage_lines}, flat: {flat_storage_lines}); \
                             Size: {:#.1} (grid: {:#.1}, flat: {:#.1})\
