@@ -1999,6 +1999,26 @@ impl SettingsView {
     }
 
     fn should_render_page(&self, settings_page: &SettingsPage, app: &AppContext) -> bool {
+        #[cfg(feature = "skip_login")]
+        {
+            // In local/offline mode, hide all cloud-related settings pages
+            let is_cloud_page = matches!(
+                &settings_page.view_handle,
+                SettingsPageViewHandle::Teams(_)
+                    | SettingsPageViewHandle::SharedBlocks(_)
+                    | SettingsPageViewHandle::BillingAndUsage(_)
+                    | SettingsPageViewHandle::BillingAndUsageV2(_)
+                    | SettingsPageViewHandle::OzCloudAPIKeys(_)
+                    | SettingsPageViewHandle::Warpify(_)
+                    | SettingsPageViewHandle::Referrals(_)
+                    | SettingsPageViewHandle::CloudEnvironments(_)
+                    | SettingsPageViewHandle::WarpDrive(_)
+            );
+            if is_cloud_page {
+                return false;
+            }
+        }
+
         match &settings_page.view_handle {
             SettingsPageViewHandle::Main(v) => v.as_ref(app).should_render(app),
             SettingsPageViewHandle::Teams(v) => v.as_ref(app).should_render(app),
