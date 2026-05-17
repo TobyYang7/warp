@@ -8,6 +8,8 @@ use warp_core::{
     AppId,
 };
 
+mod local_ai_proxy;
+
 // Simple wrapper around warp::run() for Warp OSS builds.
 fn main() -> Result<()> {
     let mut state = ChannelState::new(
@@ -27,6 +29,41 @@ fn main() -> Result<()> {
         state = state.with_additional_features(warp_core::features::DEBUG_FLAGS);
     }
     ChannelState::set(state);
+
+    // Load local AI config and start proxy if configured
+    let config = local_ai_proxy::LocalAiConfig::load();
+    if config.has_deepseek_config() {
+        eprintln!("[warp-oss] Local AI config found, starting proxy server...");
+
+        // Create a separate tokio runtime for the proxy
+        match tokio::runtime::Runtime::new() {
+            Ok(proxy_runtime) => {
+                let proxy_fut = local_ai_proxy::start_proxy(config.clone());
+                match proxy_runtime.block_on(proxy_fut) {
+                    Ok((port, _shutdown_token)) => {
+                        let proxy_url = format!("http://127.0.0.1:{port}");
+                        eprintln!("[warp-oss] Local AI proxy started at {proxy_url}");
+
+                        // Override server root URL to point to our proxy
+                        if let Err(e) = ChannelState::override_server_root_url(proxy_url) {
+                            eprintln!("[warp-oss] Failed to override server URL: {e}");
+                        }
+
+                        // Keep the proxy runtime alive in a background thread
+                        std::thread::spawn(move || {
+                            proxy_runtime.block_on(std::future::pending::<()>());
+                        });
+                    }
+                    Err(e) => {
+                        eprintln!("[warp-oss] Failed to start local AI proxy: {e}. Falling back.");
+                    }
+                }
+            }
+            Err(e) => {
+                eprintln!("[warp-oss] Failed to create proxy runtime: {e}. Falling back.");
+            }
+        }
+    }
 
     warp::run()
 }
